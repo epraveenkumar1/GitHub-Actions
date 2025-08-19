@@ -31,19 +31,21 @@ jobs:
         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
         sudo apt-get update -y
-        sudo apt-get install trivy -y
+        sudo apt-get install -y trivy
     - name: Trivy Filesystem Scan
       run: trivy fs --format table -o fsreport.json .
       
     # gitleaks scan is a tool that is used to find if there is any kind of sensitive data hardcoded i.e., API tokens, secret access tokens
     - name: Gitleaks Install
       run: sudo apt install gitleaks -y
-
+    - name: Gitleaks Code Scan
+      run: gitleaks detect source . -r gitleaks-report.json -f json
 
 
 
   test:
     runs-on: self-hosted
+    needs: security-check
 
     steps:
     - uses: actions/checkout@v4
@@ -53,14 +55,14 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: maven
-    - name: Build with Maven
-      run: mvn compile
+    - name: Unit Test Cases
+      run: mvn test
 
-    - name: Gitleaks Code Scan
-      run: gitleaks detect source . -r gitleaks-report.json -f json
 
   sonarqube:
     runs-on: self-hosted
+    needs: test
+    
     steps:
     - uses: actions/checkout@v4
       with:
